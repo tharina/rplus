@@ -40,5 +40,5 @@ sanitize: $(SRCS) $(HDRS) $(IMPL)
 	$(shell $(LLVM_CONFIG) --bindir)/clang++ $(CXXFLAGS) -stdlib=libc++ \
 		-Wl,-rpath=$(shell $(LLVM_CONFIG) --libdir) -fsanitize=address \
 		-o $@ $(SRCS) $(LDFLAGS) -lc++abi
-	ASAN_SYMBOLIZER_PATH=$(shell $(LLVM_CONFIG) --bindir)/llvm-symbolizer ./$@ -e 16
+	ASAN_SYMBOLIZER_PATH=$(shell $(LLVM_CONFIG) --bindir)/llvm-symbolizer ./$@ -e 16 -m time
 
