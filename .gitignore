@@ -1,4 +1,5 @@
 *.o
 bench
 bench_malloc
+sanitize
 results/
