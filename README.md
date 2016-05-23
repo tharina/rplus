@@ -1,9 +1,9 @@
-# Algorithm Engineering Programmmieraufgaben -- Range Search
+# Algorithm Engineering Programmmieraufgaben — Range Search
 
 Implementieren und evaluieren Sie effiziente Datenstrukturen für 2D orthogonal range search in C++11/14.
-Nutzen sie dafür das vorgegebene Framework.
+Nutzen Sie dafür das vorgegebene Framework.
 Das Framework gibt ein Interface vor, das Sie einhalten müssen ([`range_search.h`](range_search.h)).
-Eine Beispiel-Implementierung einer naiven Suche finden sie in [`naive.h`](naive.h).
+Eine Beispiel-Implementierung einer naiven Suche finden Sie in [`naive.h`](naive.h).
 Da es eine Vielzahl verschiedener Möglichkeiten gibt, kann (und soll) die Aufgabe von mehreren Personen bearbeitet werden.
 
 Mögliche Varianten beinhalten:
@@ -24,21 +24,22 @@ Sie können auf die Koordinaten mittels `p[0]` und `p[1]` zugreifen.
 
 Sie müssen das vorgegebene Interface ([`range_search.h`](range_search.h)) implementieren.
 Darin vorgegeben sind folgende Methoden:
+
 - [`void assign(const std::vector<Point>&)`](range_search.h#L21)
 
-   Setzt die zugrundeliegende Punktmenge.
-   Hier sollten Sie alle Vorberechnungsschritte ausführen und Ihre Datenstruktur erstellen.
+     Setzt die zugrundeliegende Punktmenge.
+     Hier sollten Sie alle Vorberechnungsschritte ausführen und Ihre Datenstruktur erstellen.
 
 - [`void reportRange(const Point&, const Point&, std::vector<Point>&)`](range_search.h#L24)
 
-   Führt eine orthogonal range reporting query aus.
-   Die Punkte spannen ein Rechteck auf, wobei der erste die untere linke Ecke darstellt und der zweite die rechte obere.
-   Alle Punkte der Grundmenge, die sich innerhalb dieses Rechtecks befinden, werden dem vector hinzugefügt.
+     Führt eine orthogonal range reporting query aus.
+     Die Punkte spannen ein Rechteck auf, wobei der erste die untere linke Ecke darstellt und der zweite die rechte obere.
+     Alle Punkte der Grundmenge, die sich innerhalb dieses Rechtecks befinden, werden dem vector hinzugefügt.
 
 - [`size_t countRange(const Point&, const Point&)`](range_search.h#L27)
 
-   Führt eine orthogonal range counting query aus.
-   Wie oben, allerdings werden die Punkte nur gezählt anstatt ausgegeben, was oft effizienter implementiert werden kann.
+     Führt eine orthogonal range counting query aus.
+     Wie oben, allerdings werden die Punkte nur gezählt anstatt ausgegeben, was oft effizienter implementiert werden kann.
 
 Darüber hinaus müssen Sie Ihre Implementierung registrieren.
 Tragen Sie dazu in der Datei [`contenders.h`](contenders.h) sowohl die entsprechende `#include`-Anweisung als auch die zu testenden Datenstrukturen ein.
@@ -52,9 +53,9 @@ Dieser betrifft aber alle Implementierungen im gleichen Maße und hat daher kein
 
 ## Voraussetzungen
 
-Da das Framework Funktionalitäten aus dem C++11-Standard verwendet, muss ein entsprechender Compiler zum Einsatz kommen.
+Da das Framework Funktionalitäten aus dem C++11-Standard verwendet muss ein entsprechender Compiler zum Einsatz kommen.
 Empfohlen werden der GNU Compiler `g++` ab Version 4.8 oder das C++-Frontend `clang++` des LLVM Compilers ab Version 3.4.
-Bei diesen älteren Versionen ist es unter Umständen nötig, den Standard in der [`Makefile`](Makefile) auf `-std=c++11` zu ändern.
+Bei diesen älteren Versionen ist es unter Umständen nötig, den Standard in der [`Makefile`](Makefile#L4) auf `-std=c++11` zu ändern.
 Da das Framework einige POSIX-Funktionen verwendet kann es aktuell nicht unter Windows kompiliert werden.
 
 Folgende Abhängigkeiten werden benötigt:
@@ -64,7 +65,7 @@ Folgende Abhängigkeiten werden benötigt:
 
 Als Buildsystem kommt GNU make zum Einsatz.
 Dieses erzeugt standardmäßig die Binaries `bench` und `bench_malloc`, die Zeit-, Performance-Counter-, sowie Speichermessungen durchführen.
-Darüber hinaus können sie mit Hilfe von `sanitize` den [AddressSanitizer](http://clang.llvm.org/docs/AddressSanitizer.html) von Clang verwenden, um mögliche Speicherlecks oder Zugriffsverletzungen zu finden.
+Darüber hinaus können Sie mit Hilfe von `sanitize` den [AddressSanitizer](http://clang.llvm.org/docs/AddressSanitizer.html) von Clang verwenden, um mögliche Speicherlecks oder Zugriffsverletzungen zu finden.
 
 ## Verwendung
 
