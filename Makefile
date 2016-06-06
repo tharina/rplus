@@ -27,7 +27,7 @@ framework/bench.o: $(IMPL)
 framework/%.o: framework/%.cpp $(HDRS)
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-framework/bench_malloc.o: framework/bench.cpp $(HDRS)
+framework/bench_malloc.o: framework/bench.cpp $(HDRS) $(IMPL)
 	$(CXX) $(CXXFLAGS) -DMALLOC_INSTR -o $@ -c $<
 
 bench: $(OBJS)
