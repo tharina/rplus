@@ -6,7 +6,7 @@ BENCHMARKS ?= uniform skewed normal clustered stacked
 # default set of plot types that should be generated
 PLOTS ?= pretime prealloc time l1dcm l3tcm brmsp totins totcyc
 # datastructures that have been evaluated
-DATASTRUCTURES ?= $(shell grep -oE 'ds=[^	]+' ../results/*.txt | sed -E 's/^.+ds=//' | sort -u | sed 's/ /_/g')
+DATASTRUCTURES ?= $(shell grep -oE 'ds=[^	]+' ../results/*.txt | sed -E 's/^.+ds=//' | sort -u | sed 's/ /×/g')
 # set to non-empty to keep intermediate files
 KEEP_PLOTS ?=
 
@@ -15,7 +15,8 @@ PLOT_TYPES := time l1dcm l3tcm brmsp totins totcyc alloc peakmem nalloc
 PLOT_TYPES += $(patsubst %,pre%,$(PLOT_TYPES))
 
 # strips non-alphanumeric characters from datastructure names
-ds_target = $(shell echo $1 | sed 's/[^a-zA-Z0-9]/_/g')
+ds_target = $(shell echo '$1' | sed 's/[^a-zA-Z0-9]/_/g')
+ds_name   = $(shell echo '$1' | sed 's/×/ /g')
 # maps plot type to results file
 dep_file  = ../results/$(if $(findstring time,$1),time,$(if $(findstring alloc,$1),memory,$(if $(findstring peakmem,$1),memory,papi))).txt
 
@@ -74,7 +75,7 @@ $1: $(foreach p,$(PLOTS),$p_$1.svg)
 %_$1.plot: FILTER_DESC  := $2
 %_$1.plot: COMPARE      := bench
 endef
-$(foreach d,$(DATASTRUCTURES),$(eval $(call ds-deps,$(call ds_target,$d),$d)))
+$(foreach d,$(DATASTRUCTURES),$(eval $(call ds-deps,$(call ds_target,$d),$(call ds_name,$d))))
 
 # by default, scale by number of queries
 FACTOR    := "queries"
@@ -102,11 +103,16 @@ alloc_% prealloc_% peakmem_% prepeakmem_%: YLABEL    := " in bytes"
 alloc_% prealloc_% peakmem_% prepeakmem_% nalloc_% prenalloc_%: LOGSCALE :=
 
 # papi measurements
-l1dcm_%:  PLOT_DESC := L1 data cache misses
-l3tcm_%:  PLOT_DESC := L3 cache misses
-brmsp_%:  PLOT_DESC := branch mispredictions
-totins_%: PLOT_DESC := total cycles
-totcyc_%: PLOT_DESC := instructions completed
+l1dcm_% prel1dcm_%:   PLOT_DESC := L1 data cache misses
+l3tcm_% prel3tcm_%:   PLOT_DESC := L3 cache misses
+brmsp_% prebrmsp_%:   PLOT_DESC := branch mispredictions
+totins_% pretotins_%: PLOT_DESC := total cycles
+totcyc_% pretotcyc_%: PLOT_DESC := instructions completed
+
+prealloc_% prenalloc_% prepeakmem_% prel1dcm_% prel3tcm_%: KEYPOS := "top left"
+pretime_% pretotcyc_% pretotins_%: KEYPOS := "top left"
+alloc_% nalloc_% peakmem_%: KEYPOS := "top right"
+l1dcm_%: KEYPOS := "bottom right"
 
 COMPARE := ds
 FILTER_COL := bench
