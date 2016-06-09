@@ -73,6 +73,14 @@ Bei Ausführung ohne Parameter führt `bench` Laufzeit-, Performance-Counter-, u
 Mit Hilfe von Kommandozeilen-Parametern können Sie dies Einschränken, was besonders bei der Entwicklung hilfreich ist.
 Mögliche Parameter können Sie mittels `bench -h` ausgeben lassen.
 
+Dies sind einige Beispiel-Distributionen, die getestet werden:
+
+<img src="plots/uniform.png" width=256/>
+<img src="plots/skewed.png" width=256/>
+<img src="plots/normal.png" width=256/>
+<img src="plots/clustered.png" width=256/>
+<img src="plots/stacked.png" width=256/>
+
 Benchmark-Ergebnisse werden auf der Konsole ausgegeben und in maschinenlesbarer Form im Verzeichnis `results/` abgespeichert.
 Sie können daraus mit Hilfe von [sqlplot-tools](https://github.com/bingmann/sqlplot-tools) einfach Plots erstellen.
 Führen Sie dazu `make` im Unterverzeichnis `plots/` aus.
