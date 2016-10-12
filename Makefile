@@ -1,7 +1,8 @@
 LLVM_CONFIG ?= llvm-config
 
 CXXFLAGS ?= -O3 -DNDEBUG -g -march=native
-override CXXFLAGS += -std=c++1y -Wall -Wextra -Werror -pedantic
+#override CXXFLAGS += -std=c++1y -Wall -Wextra -Werror -pedantic
+override CXXFLAGS += -std=c++1y -Wall -Wextra -pedantic
 override LDFLAGS  += -lpapi
 
 SRCS := $(filter-out %_malloc.cpp,$(wildcard framework/*.cpp))
