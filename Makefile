@@ -37,6 +37,9 @@ bench: $(OBJS)
 bench_malloc: $(OBJS_MALLOC)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -ldl
 
+test:
+	$(CXX) $(CXXFLAGS) -o test test.cpp
+
 sanitize: $(SRCS) $(HDRS) $(IMPL)
 	$(shell $(LLVM_CONFIG) --bindir)/clang++ $(CXXFLAGS) -stdlib=libc++ \
 		-Wl,-rpath=$(shell $(LLVM_CONFIG) --libdir) -fsanitize=address \
