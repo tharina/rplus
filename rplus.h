@@ -102,7 +102,7 @@ class RPlusTree : public RangeSearch<Point> {
     public:
       Node() { }
 
-      virtual ~Node() = 0;
+      virtual ~Node() { }
 
       const Rectangle& rectangle() const {
         return rect_;
