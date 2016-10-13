@@ -272,7 +272,7 @@ class RPlusTree : public RangeSearch<Point> {
         }
         std::cout << "# [" << num_children_ << "]  ";
         Node::rectangle().Print();
-        cout << std::endl;
+        std::cout << std::endl;
 
         for (size_t i = 0; i < num_children_; ++i) {
           children_[i]->Print(indent_level + 1);
@@ -397,9 +397,9 @@ class RPlusTree : public RangeSearch<Point> {
         if (indent_level > 0) {
           std::cout << "|--";
         }
-        cout << " [" << num_points_ << "]  ";
+        std::cout << " [" << num_points_ << "]  ";
         Node::rectangle().Print();
-        std::cout << endl;
+        std::cout << std::endl;
 
       }
 
