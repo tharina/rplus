@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <limits>
+#include <algorithm>
+#include <iomanip>
 
 #include "range_search.h"
 
@@ -20,7 +22,7 @@ template<class Point>
 class RPlusTree : public RangeSearch<Point> {
 
 
-  static const size_t kNodeCapacity = 42;
+  static const size_t kNodeCapacity = 4;
   static const size_t kFillFactor = kNodeCapacity * 1;
 
 
@@ -74,9 +76,9 @@ class RPlusTree : public RangeSearch<Point> {
 
         for (int i = 0; i < length; ++i) {
           xmax = std::max(xmax, points[i][Axis::X]);
-          xmin = std::max(xmin, points[i][Axis::X]);
+          xmin = std::min(xmin, points[i][Axis::X]);
           ymax = std::max(ymax, points[i][Axis::Y]);
-          ymin = std::max(ymin, points[i][Axis::Y]);
+          ymin = std::min(ymin, points[i][Axis::Y]);
         }
 
         return Rectangle({xmin, ymin}, {xmax, ymax});
@@ -84,6 +86,12 @@ class RPlusTree : public RangeSearch<Point> {
 
       static Rectangle BoundingBox(const std::vector<Point>& points) {
         return BoundingBox(points.data(), points.size());
+      }
+
+      void Print() const {
+        std::cout << std::fixed << std::setprecision(2) <<
+                     "(" << bottom_left_[0] << "," << bottom_left_[1] << ") " <<
+                     "(" << top_right_[0]   << "," << top_right_[1]   << ")";
       }
 
   };
@@ -111,6 +119,8 @@ class RPlusTree : public RangeSearch<Point> {
       virtual void Search(const Rectangle& w, std::vector<Point>& result) const = 0;
 
       virtual Node* Split(Axis axis, double distance) = 0;
+
+      virtual void Print(size_t indent_level) = 0;
   };
 
 
@@ -246,6 +256,23 @@ class RPlusTree : public RangeSearch<Point> {
         }
         return Rectangle::BoundingBox(points.data(), kFillFactor * 2).Area();
       }
+
+      void Print(size_t indent_level) {
+        for (size_t i = 1; i < indent_level; ++i) {
+          std::cout << "|  ";
+        }
+        if (indent_level > 0) {
+          std::cout << "---";
+        }
+        std::cout << "# ";
+        Node::rectangle().Print();
+        cout << std::endl;
+
+        for (size_t i = 0; i < num_children_; ++i) {
+          children_[i]->Print(indent_level + 1);
+        }
+
+      }
   };
 
 
@@ -351,6 +378,20 @@ class RPlusTree : public RangeSearch<Point> {
         // Cost: total area around the points
         return Rectangle::BoundingBox(set.data(), kFillFactor).Area();
       }
+
+
+      void Print(size_t indent_level) {
+        for (size_t i = 1; i < indent_level; ++i) {
+          std::cout << "|  ";
+        }
+        if (indent_level > 0) {
+          std::cout << "|--";
+        }
+        Node::rectangle().Print();
+        std::cout << endl;
+        
+      }
+
   };
 
 
@@ -379,6 +420,10 @@ class RPlusTree : public RangeSearch<Point> {
     void reportRange(const Point& min, const Point& max, std::vector<Point>& result) override {
       Rectangle search_window(min, max);
       root_->Search(search_window, result);
+    }
+
+    void Print() {
+      root_->Print(0);
     }
 
 };

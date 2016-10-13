@@ -37,7 +37,7 @@ bench: $(OBJS)
 bench_malloc: $(OBJS_MALLOC)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -ldl
 
-test:
+test: $(IMPL) test.cpp
 	$(CXX) $(CXXFLAGS) -o test test.cpp
 
 sanitize: $(SRCS) $(HDRS) $(IMPL)
