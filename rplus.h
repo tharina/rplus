@@ -4,15 +4,16 @@
 #define RANGE_SEARCH_RPLUS_H_
 
 #include <iostream>
+#include <limits>
 
 #include "range_search.h"
 
 
 namespace range_search {
 
-enum Axis {
-  X,
-  Y
+enum class Axis: size_t {
+  X = 0,
+  Y = 1
 };
 
 template<class Point>
@@ -33,6 +34,10 @@ class RPlusTree : public RangeSearch<Point> {
 
       Rectangle(Point bl, Point tr) : bottom_left_(bl), top_right_(tr) {}
 
+      // TODO rename
+      Point& p1() { return bottom_left_; }
+      Point& p2() { return top_right_; }
+
       bool Overlaps(const Rectangle& other) const {
         // TODO float comparison
         return bottom_left_[0] <= other.top_right_[0]   &&
@@ -48,6 +53,31 @@ class RPlusTree : public RangeSearch<Point> {
                p[0] <= top_right_[0]   &&
                p[1] >= bottom_left_[1] &&
                p[1] <= top_right_[1];
+      }
+
+      bool Intersects(Axis axis, double distance) {
+        // TODO <= ?
+        return bottom_left_[axis] < distance && top_right_[axis] > distance;
+      }
+
+      double Area() const {
+        return (top_right_[0] - bottom_left_[0]) * (top_right_[1] - bottom_left_[1]);
+      }
+
+      static Rectangle BoundingBox(const Point* points, size_t length) {
+        double xmin = std::numeric_limits<double>::max();
+        double xmax = 0;
+        double ymin = std::numeric_limits<double>::max();
+        double ymax = 0;
+
+        for (int i = 0; i < length; ++i) {
+          xmax = std::max(xmax, points[i][Axis::X]);
+          xmin = std::max(xmin, points[i][Axis::X]);
+          ymax = std::max(ymax, points[i][Axis::Y]);
+          ymin = std::max(ymin, points[i][Axis::Y]);
+        }
+
+        return Rectangle({xmin, ymin}, {xmax, ymax});
       }
 
   };
@@ -124,12 +154,59 @@ class RPlusTree : public RangeSearch<Point> {
         return Pack(next_level_nodes);
       }
 
-      static IntermediateNode* Partition(const std::vector<Node*> set, std::vector<Node*>& remainder) {
-        // TODO
+      static IntermediateNode* Partition(std::vector<Node*> set, std::vector<Node*>& remainder) {
+        if (set.size() <= kFillFactor) {
+          return new IntermediateNode(set);
+        }
+
+        double cutline, cutline_x, cutline_y;
+
+        double cost_x = Sweep(set, Axis::X, &cutline_x);
+        double cost_y = Sweep(set, Axis::Y, &cutline_y);
+
+        Axis axis;
+        if (cost_x < cost_y) {
+          axis = Axis::X;
+          cutline = cutline_x;
+        } else {
+          axis = Axis::Y;
+          cutline = cutline_y;
+        }
+
+        std::vector<Node*> used;
+
+        for (auto node : set) {
+          // Check if node has to be split
+          if (node->rectangle()->Intersects(axis, cutline)) {
+            // Need to split...
+            Node* new_node = node->Split(axis, cutline);
+            // TODO correct?
+            remainder.push_back(new_node);
+          }
+
+          // Insert node into correct set
+          if (node->rectangle().p1()[axis] < cutline) {
+            used.push_back(node);
+          } else {
+            remainder.push_back(node);
+          }
+        }
+
+        return new IntermediateNode(used);
       }
 
-      static double Sweep(std::vector<Node*>& set, Axis axis, double& offset) {
-        // TODO
+      static double Sweep(std::vector<Node*>& set, Axis axis, double& cutline) {
+        std::sort(set.begin(), set.end(), [=](Node* a, Node* b) -> bool { return a->rectangle().p1()[axis] < b->rectangle().p1()[axis]; });
+
+        cutline = set[kFillFactor]->rectangle().p1()[axis];
+
+        // Cost: total area around the points
+        std::vector<Point> points;
+        for (const auto& node : set) {
+          points.push_back(node->rectangle().p1());
+          points.push_back(node->rectangle().p2());
+        }
+        return Rectangle::BoundingBox(points.data(), kFillFactor * 2).Area();
       }
   };
 
@@ -143,7 +220,7 @@ class RPlusTree : public RangeSearch<Point> {
     public:
       Leaf(const std::vector<Point>& points) {
         num_points_= points.size();
-        for(int i = 0; i < num_points_; ++i) {
+        for (int i = 0; i < num_points_; ++i) {
           points_[i] = points[i];
         }
       }
@@ -177,11 +254,44 @@ class RPlusTree : public RangeSearch<Point> {
       }
 
       static Leaf* Partition(const std::vector<Point>& set, std::vector<Point>& remainder) {
-        // TODO
+        if (set.size() <= kFillFactor) {
+          return new Leaf(set);
+        }
+
+        double cutline, cutline_x, cutline_y;
+
+        double cost_x = Sweep(set, Axis::X, &cutline_x);
+        double cost_y = Sweep(set, Axis::Y, &cutline_y);
+
+        Axis axis;
+        if (cost_x < cost_y) {
+          axis = Axis::X;
+          cutline = cutline_x;
+        } else {
+          axis = Axis::Y;
+          cutline = cutline_y;
+        }
+
+        std::vector<Point> used;
+
+        for (const auto& point : set) {
+          if (point[axis] < cutline) {
+            used.push_back(point);
+          } else {
+            remainder.push_back(point);
+          }
+        }
+
+        return new Leaf(used);
       }
 
-      static double Sweep(std::vector<Point>& set, Axis axis, double& offset) {
-        // TODO
+      static double Sweep(std::vector<Point>& set, Axis axis, double& cutline) {
+        std::sort(set.begin(), set.end(), [=](const Point& a, const Point& b) -> bool { return a[axis] < b[axis]; });
+
+        cutline = set[kFillFactor][axis];
+
+        // Cost: total area around the points
+        return Rectangle::BoundingBox(set.data(), kFillFactor).Area();
       }
   };
 
@@ -202,8 +312,9 @@ class RPlusTree : public RangeSearch<Point> {
     }
 
     /// Sets the underlying set.
+    // No two points must be equal.
     void assign(const std::vector<Point>& points) override {
-
+      root_ = Leaf::Pack(points);
     }
 
     /// Reports all points within the rectangle given by [min, max].
