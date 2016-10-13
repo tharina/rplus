@@ -164,7 +164,8 @@ class RPlusTree : public RangeSearch<Point> {
       Node* Split(Axis axis, double distance) override {
         std::vector<Node*> keep, abandon;
 
-        for (auto node : children_) {
+        for (int i = 0; i < num_children_; ++i) {
+          Node* node = children_[i];
           if (node->rectangle().p2()[axis] <= distance) {
             keep.push_back(node);
           } else if (node->rectangle().p1()[axis] < distance) {
@@ -312,7 +313,8 @@ class RPlusTree : public RangeSearch<Point> {
       Node* Split(Axis axis, double distance) override {
         std::vector<Point> keep, abandon;
 
-        for (const auto& point : points_) {
+        for (int i = 0; i < num_points_; ++i) {
+          const Point& point = points_[i];
           if (point[axis] < distance) {
             keep.push_back(point);
           } else {
@@ -399,7 +401,7 @@ class RPlusTree : public RangeSearch<Point> {
         cout << " [" << num_points_ << "]  ";
         Node::rectangle().Print();
         std::cout << endl;
-        
+
       }
 
   };
