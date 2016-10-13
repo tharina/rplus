@@ -83,6 +83,14 @@ class RPlusTree : public RangeSearch<Point> {
       Node* children_[kNodeCapacity];
 
     public:
+
+      IntermediateNode(const std::vector<Node*>& children) {
+        num_entries_ = children.size();
+        for (int i = 0; i < num_entries_; ++i) {
+          children_[i] = children[i];
+        }
+      }
+
       ~IntermediateNode() override {
         for (int i = 0; i < num_entries_; ++i) {
           delete children_[i];
@@ -101,9 +109,19 @@ class RPlusTree : public RangeSearch<Point> {
         // TODO
       }
 
-      static Node* Pack(std::vector<IntermediateNode*> nodes) {
-        // TODO
-        // return IntermediateNode::Pack(nodes);
+      static Node* Pack(std::vector<Node*> nodes) {
+        if (nodes.size() <= kFillFactor) {
+          return IntermediateNode(nodes);
+        }
+
+        std::vector<Node*> next_level_nodes;
+        std::vector<Node*> remainder;
+        while (nodes.size() > 0) {
+          next_level_nodes.push_back(Partition(nodes, remainder));
+          nodes = remainder;
+        }
+
+        return Pack(next_level_nodes);
       }
 
       static IntermediateNode* Partition(const std::vector<Node*> set, std::vector<Node*>& remainder) {
@@ -123,6 +141,13 @@ class RPlusTree : public RangeSearch<Point> {
       Point points_[kNodeCapacity];
 
     public:
+      Leaf(const std::vector<Point>& points) {
+        num_points_= points.size();
+        for(int i = 0; i < num_points_; ++i) {
+          points_[i] = points[i];
+        }
+      }
+
       ~Leaf() override { }
 
       void Search(const Rectangle& w, std::vector<Point>& result) const override {
@@ -138,11 +163,20 @@ class RPlusTree : public RangeSearch<Point> {
       }
 
       static Node* Pack(std::vector<Point> points) {
-        // TODO
-        // return IntermediateNode::Pack(leafs);
+        if (points.size() <= kFillFactor) {
+          return Leaf(points);
+        }
+
+        std::vector<Node*> leafs;
+        std::vector<Point> remainder;
+        while (points.size() > 0) {
+          leafs.push_back(Partition(points, remainder));
+          points = remainder;
+        }
+        return IntermediateNode::Pack(leafs);
       }
 
-      static IntermediateNode* Partition(const std::vector<Point>& set, std::vector<Point>& remainder) {
+      static Leaf* Partition(const std::vector<Point>& set, std::vector<Point>& remainder) {
         // TODO
       }
 
