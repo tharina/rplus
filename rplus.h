@@ -46,9 +46,8 @@ class RPlusTree : public RangeSearch<Point> {
         // TODO float comparison
         return bottom_left_[0] <= other.top_right_[0]   &&
                top_right_[0]   >= other.bottom_left_[0] &&
-               top_right_[1]   <= other.bottom_left_[1] &&
-               bottom_left_[1] >= other.top_right_[1];
-
+               top_right_[1]   >= other.bottom_left_[1] &&
+               bottom_left_[1] <= other.top_right_[1];
       }
 
       bool Contains(const Point& p) const {
