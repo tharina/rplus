@@ -185,7 +185,8 @@ class RPlusTree : public RangeSearch<Point> {
         std::vector<Node*> remainder;
         while (nodes.size() > 0) {
           next_level_nodes.push_back(Partition(nodes, remainder));
-          nodes = remainder;
+          nodes.clear();
+          nodes.swap(remainder);
         }
 
         return Pack(next_level_nodes);
@@ -304,7 +305,8 @@ class RPlusTree : public RangeSearch<Point> {
         std::vector<Point> remainder;
         while (points.size() > 0) {
           leafs.push_back(Partition(points, remainder));
-          points = remainder;
+          points.clear();
+          points.swap(remainder);
         }
         return IntermediateNode::Pack(leafs);
       }
