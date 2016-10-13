@@ -3,11 +3,17 @@
 #ifndef RANGE_SEARCH_RPLUS_H_
 #define RANGE_SEARCH_RPLUS_H_
 
+#include <iostream>
+
 #include "range_search.h"
 
 
-
 namespace range_search {
+
+enum Axis {
+  X,
+  Y
+};
 
 template<class Point>
 class RPlusTree : public RangeSearch<Point> {
@@ -26,14 +32,14 @@ class RPlusTree : public RangeSearch<Point> {
     public:
 
       Rectangle(Point bl, Point tr) : bottom_left_(bl), top_right_(tr) {}
-      
+
       bool Overlaps(const Rectangle& other) const {
         // TODO float comparison
         return bottom_left_[0] <= other.top_right_[0]   &&
                top_right_[0]   >= other.bottom_left_[0] &&
                top_right_[1]   <= other.bottom_left_[1] &&
                bottom_left_[1] >= other.top_right_[1];
-            
+
       }
 
       bool Contains(const Point& p) const {
@@ -46,62 +52,103 @@ class RPlusTree : public RangeSearch<Point> {
 
   };
 
+  class IntermediateNode;
 
   class Node {
 
     private:
-      Node* parent_;
+      IntermediateNode* parent_;
+
+    protected:
+      // TODO private?
+      Rectangle rect_;
 
     public:
       virtual ~Node() = 0;
-      virtual void search(const Rectangle& w, std::vector<Point>& result) = 0;
 
+      const Rectangle& rectangle() const {
+        return rect_;
+      }
+
+      virtual void Search(const Rectangle& w, std::vector<Point>& result) const = 0;
+
+      virtual void Split(Axis axis, double offset) = 0;
   };
 
 
   class IntermediateNode : public Node {
-    
-    private:
-      struct Entry {
-        Rectangle r;
-        Node* child;
-      };
 
-      unsigned int num_entries_ ;
-      Entry entries_[kNodeCapacity];
+    private:
+      size_t num_entries_ ;
+      Node* children_[kNodeCapacity];
 
     public:
-      ~IntermediateNode();
-
-      void search(const Rectangle& w, std::vector<Point>& result) override {
-        for(int i = 0; i < num_entries_; ++i) {
-          if(w.Overlaps(entries_[i].r)) {
-            entries_[i].child->search(w, result);
-          }
+      ~IntermediateNode() override {
+        for (int i = 0; i < num_entries_; ++i) {
+          delete children_[i];
         }
-        return;
       }
 
+      void Search(const Rectangle& w, std::vector<Point>& result) const override {
+        for (int i = 0; i < num_entries_; ++i) {
+          if (w.Overlaps(children_[i]->rectangle())) {
+            children_[i]->Search(w, result);
+          }
+        }
+      }
+
+      void Split(Axis axis, double offset) override {
+        // TODO
+      }
+
+      static Node* Pack(std::vector<IntermediateNode*> nodes) {
+        // TODO
+        // return IntermediateNode::Pack(nodes);
+      }
+
+      static IntermediateNode* Partition(const std::vector<Node*> set, std::vector<Node*>& remainder) {
+        // TODO
+      }
+
+      static double Sweep(std::vector<Node*>& set, Axis axis, double& offset) {
+        // TODO
+      }
   };
 
 
   class Leaf : public Node {
 
     private:
-      unsigned int num_points_;
+      size_t num_points_;
       Point points_[kNodeCapacity];
 
     public:
-      ~Leaf();
-      
-      void search(const Rectangle& w, std::vector<Point>& result) override {
-        for(int i = 0; i < num_points_; ++i) {
-          if(w.Contains(points_[i])) {
+      ~Leaf() override { }
+
+      void Search(const Rectangle& w, std::vector<Point>& result) const override {
+        for (int i = 0; i < num_points_; ++i) {
+          if (w.Contains(points_[i])) {
             result.push_back(points_[i]);
           }
         }
       }
 
+      void Split(Axis axis, double offset) override {
+        // TODO
+      }
+
+      static Node* Pack(std::vector<Point> points) {
+        // TODO
+        // return IntermediateNode::Pack(leafs);
+      }
+
+      static IntermediateNode* Partition(const std::vector<Point>& set, std::vector<Point>& remainder) {
+        // TODO
+      }
+
+      static double Sweep(std::vector<Point>& set, Axis axis, double& offset) {
+        // TODO
+      }
   };
 
 
@@ -110,10 +157,15 @@ class RPlusTree : public RangeSearch<Point> {
 
 
   private:
-    Node* root;
+    Node* root_;
 
 
   public:
+    RPlusTree() : root_(nullptr) { }
+
+    ~RPlusTree() override {
+      delete root_;
+    }
 
     /// Sets the underlying set.
     void assign(const std::vector<Point>& points) override {
@@ -124,7 +176,7 @@ class RPlusTree : public RangeSearch<Point> {
     void reportRange(const Point& min, const Point& max, std::vector<Point>& result) override {
       Rectangle search_window(min, max);
 
-      root->search(search_window, result);
+      root_->Search(search_window, result);
     }
 
 };
