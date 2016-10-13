@@ -26,5 +26,7 @@ int main()
 
    rplus.assign(points);
 
+   rplus.Print();
+
    return 0;
 }

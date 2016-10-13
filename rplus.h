@@ -178,10 +178,16 @@ class RPlusTree : public RangeSearch<Point> {
         }
 
         // TODO make better
+        std::vector<Point> points;
         num_children_ = keep.size();
         for (int i = 0; i < num_children_; ++i) {
           children_[i] = keep[i];
+          points.push_back(keep[i]->rectangle().p1());
+          points.push_back(keep[i]->rectangle().p2());
         }
+
+        // Update bounding box
+        Node::rect_ = Rectangle::BoundingBox(points);
 
         return new IntermediateNode(abandon);
       }
@@ -319,6 +325,9 @@ class RPlusTree : public RangeSearch<Point> {
         for (int i = 0; i < num_points_; ++i) {
           points_[i] = keep[i];
         }
+
+        // Update bounding box
+        Node::rect_ = Rectangle::BoundingBox(keep);
 
         return new Leaf(abandon);
       }
