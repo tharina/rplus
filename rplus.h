@@ -5,11 +5,19 @@
 
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <algorithm>
 #include <iomanip>
 
 #include "range_search.h"
 
+#define DEBUG 1
+
+#if DEBUG
+  #define Assert(expr) if (!(expr)) { std::cerr << "Assertion \"" << #expr << "\" failed (in " << __FILE__ << ":" << __LINE__ << "). Aborting" << std::endl; abort(); }
+#else
+  #define Assert(expr) if (!(expr)) { }
+#endif
 
 namespace range_search {
 
@@ -22,7 +30,7 @@ template<class Point>
 class RPlusTree : public RangeSearch<Point> {
 
 
-  static const size_t kNodeCapacity = 4;
+  static const size_t kNodeCapacity = 8;
   static const size_t kFillFactor = kNodeCapacity * 1;
 
 
@@ -68,19 +76,20 @@ class RPlusTree : public RangeSearch<Point> {
       }
 
       static Rectangle BoundingBox(const Point* points, size_t length) {
+        Assert(length > 0);
         double xmin = std::numeric_limits<double>::max();
-        double xmax = 0;
+        double xmax = std::numeric_limits<double>::lowest();
         double ymin = std::numeric_limits<double>::max();
-        double ymax = 0;
+        double ymax = std::numeric_limits<double>::lowest();
 
-        for (int i = 0; i < length; ++i) {
+        for (size_t i = 0; i < length; ++i) {
           xmax = std::max(xmax, points[i][Axis::X]);
           xmin = std::min(xmin, points[i][Axis::X]);
           ymax = std::max(ymax, points[i][Axis::Y]);
           ymin = std::min(ymin, points[i][Axis::Y]);
         }
 
-        return Rectangle({xmin, ymin}, {xmax, ymax});
+        return Rectangle({{xmin, ymin}}, {{xmax, ymax}});
       }
 
       static Rectangle BoundingBox(const std::vector<Point>& points) {
@@ -93,6 +102,13 @@ class RPlusTree : public RangeSearch<Point> {
                      "(" << top_right_[0]   << "," << top_right_[1]   << ")";
       }
 
+      std::string ToString() const {
+        std::stringstream stream;
+        stream << std::fixed << std::setprecision(2)
+               << "(" << bottom_left_[0] << "," << bottom_left_[1] << ") "
+               << "(" << top_right_[0]   << "," << top_right_[1]   << ")";
+        return stream.str();
+      }
   };
 
   class IntermediateNode;
@@ -133,7 +149,7 @@ class RPlusTree : public RangeSearch<Point> {
 
       IntermediateNode(const std::vector<Node*>& children) : Node() {
         num_children_ = children.size();
-        for (int i = 0; i < num_children_; ++i) {
+        for (size_t i = 0; i < num_children_; ++i) {
           children_[i] = children[i];
         }
 
@@ -147,13 +163,13 @@ class RPlusTree : public RangeSearch<Point> {
       }
 
       ~IntermediateNode() override {
-        for (int i = 0; i < num_children_; ++i) {
+        for (size_t i = 0; i < num_children_; ++i) {
           delete children_[i];
         }
       }
 
       void Search(const Rectangle& w, std::vector<Point>& result) const override {
-        for (int i = 0; i < num_children_; ++i) {
+        for (size_t i = 0; i < num_children_; ++i) {
           if (w.Overlaps(children_[i]->rectangle())) {
             children_[i]->Search(w, result);
           }
@@ -163,7 +179,7 @@ class RPlusTree : public RangeSearch<Point> {
       Node* Split(Axis axis, double distance) override {
         std::vector<Node*> keep, abandon;
 
-        for (int i = 0; i < num_children_; ++i) {
+        for (size_t i = 0; i < num_children_; ++i) {
           Node* node = children_[i];
           if (node->rectangle().p2()[axis] <= distance) {
             keep.push_back(node);
@@ -180,7 +196,7 @@ class RPlusTree : public RangeSearch<Point> {
         // TODO make better
         std::vector<Point> points;
         num_children_ = keep.size();
-        for (int i = 0; i < num_children_; ++i) {
+        for (size_t i = 0; i < num_children_; ++i) {
           children_[i] = keep[i];
           points.push_back(keep[i]->rectangle().p1());
           points.push_back(keep[i]->rectangle().p2());
@@ -263,7 +279,7 @@ class RPlusTree : public RangeSearch<Point> {
         return Rectangle::BoundingBox(points.data(), kFillFactor * 2).Area();
       }
 
-      void Print(size_t indent_level) {
+      void Print(size_t indent_level) override {
         for (size_t i = 1; i < indent_level; ++i) {
           std::cout << "|  ";
         }
@@ -277,7 +293,6 @@ class RPlusTree : public RangeSearch<Point> {
         for (size_t i = 0; i < num_children_; ++i) {
           children_[i]->Print(indent_level + 1);
         }
-
       }
   };
 
@@ -290,8 +305,8 @@ class RPlusTree : public RangeSearch<Point> {
 
     public:
       Leaf(const std::vector<Point>& points) : Node() {
-        num_points_= points.size();
-        for (int i = 0; i < num_points_; ++i) {
+        num_points_ = points.size();
+        for (size_t i = 0; i < num_points_; ++i) {
           points_[i] = points[i];
         }
 
@@ -302,7 +317,7 @@ class RPlusTree : public RangeSearch<Point> {
       ~Leaf() override { }
 
       void Search(const Rectangle& w, std::vector<Point>& result) const override {
-        for (int i = 0; i < num_points_; ++i) {
+        for (size_t i = 0; i < num_points_; ++i) {
           if (w.Contains(points_[i])) {
             result.push_back(points_[i]);
           }
@@ -312,7 +327,7 @@ class RPlusTree : public RangeSearch<Point> {
       Node* Split(Axis axis, double distance) override {
         std::vector<Point> keep, abandon;
 
-        for (int i = 0; i < num_points_; ++i) {
+        for (size_t i = 0; i < num_points_; ++i) {
           const Point& point = points_[i];
           if (point[axis] < distance) {
             keep.push_back(point);
@@ -323,7 +338,7 @@ class RPlusTree : public RangeSearch<Point> {
 
         // TODO make better
         num_points_ = keep.size();
-        for (int i = 0; i < num_points_; ++i) {
+        for (size_t i = 0; i < num_points_; ++i) {
           points_[i] = keep[i];
         }
 
@@ -390,7 +405,7 @@ class RPlusTree : public RangeSearch<Point> {
       }
 
 
-      void Print(size_t indent_level) {
+      void Print(size_t indent_level) override {
         for (size_t i = 1; i < indent_level; ++i) {
           std::cout << "|  ";
         }
@@ -400,7 +415,6 @@ class RPlusTree : public RangeSearch<Point> {
         std::cout << " [" << num_points_ << "]  ";
         Node::rectangle().Print();
         std::cout << std::endl;
-
       }
 
   };

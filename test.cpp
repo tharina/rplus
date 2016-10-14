@@ -1,6 +1,7 @@
 #include <array>
 #include <iostream>
 #include <random>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -9,18 +10,22 @@ using namespace std;
 using Point = array<double, 2>;
 
 
-int main()
-{
+int main(int argc, char** argv) {
+    unsigned seed = 0;
+    if (argc > 2)
+        seed = strtol(argv[1], nullptr, 10);
+
    double lower_bound = 0;
    double upper_bound = 10000;
    std::uniform_real_distribution<double> unif(lower_bound,upper_bound);
    std::default_random_engine re;
+   re.seed(seed);
 
 
    range_search::RPlusTree<Point> rplus;
 
    vector<Point> points;
-   for (int i = 0; i < 100; i++) {
+   for (int i = 0; i < 128; i++) {
        points.push_back({{unif(re), unif(re)}});
    }
 
