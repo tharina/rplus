@@ -17,10 +17,10 @@
 namespace range_search {
 
 
-template<class Point>
+template<class Point, size_t node_capacity>
 class RPlusTree : public RangeSearch<Point> {
 
-  static const size_t kNodeCapacity = 32;
+  static const size_t kNodeCapacity = node_capacity;
   static const size_t kFillFactor = kNodeCapacity * 1;
 
   // Forward declaration required for struct Entry.
