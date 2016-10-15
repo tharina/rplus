@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
    std::vector<Point> res;
    rplus.reportRange({0, 0}, {10000, 10000}, res);
    cout << res.size() << endl;
+   cout << rplus.countRange({0, 0}, {10000, 10000}) << endl;
 
    return 0;
 }

@@ -46,6 +46,13 @@ public:
            bottom_left_[1] <= other.top_right_[1];
   }
 
+  bool Contains(const Rectangle& other) const {
+    return min_side(X) <= other.min_side(X) &&
+           max_side(X) >= other.max_side(X) &&
+           min_side(Y) <= other.min_side(Y) &&
+           max_side(Y) >= other.max_side(Y);
+  }
+
   bool Contains(const Point& p) const {
     return p[0] >= bottom_left_[0] &&
            p[0] <= top_right_[0]   &&
