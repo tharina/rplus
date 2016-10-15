@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
    re.seed(seed);
 
 
-   range_search::RPlusTree<Point> rplus;
+   range_search::RPlusTree<Point, 64> rplus;
 
    vector<Point> points;
    for (int i = 0; i < 16384; i++) {
