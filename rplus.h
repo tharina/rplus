@@ -120,14 +120,14 @@ class RPlusTree : public RangeSearch<Point> {
         if (indent_level > 0) {
           std::cout << "---";
         }
-        std::cout << "# [" << num_entries_ << "]  ";
-        //Node::rectangle().Print();
-        std::cout << std::endl;
+        std::cout << "# [" << num_entries_ << "]  " << ComputeBoundingBox() << std::endl;
 
-        // TODO
-        //for (size_t i = 0; i < num_children_; ++i) {
-        //  children_[i]->Print(indent_level + 1);
-        //}
+        for (size_t i = 0; i < num_entries_; ++i) {
+          Node* child = entries_[i].node;
+          if(child) {
+            entries_[i].node->Print(indent_level + 1);
+          }
+        }
       }
 
     private:
