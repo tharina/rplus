@@ -270,6 +270,11 @@ class RPlusTree : public RangeSearch<Point> {
 
         cutline = set[kFillFactor]->rectangle().p1()[axis];
 
+        // Check for edge case: all points on a axis-aligned line.
+        if (set.begin()->rectangle().p1()[axis] == set.end()->rectangle().p1()[axis]) {
+          return std::numeric_limits<double>::max();
+        }
+
         // Cost: total area around the points
         std::vector<Point> points;
         for (const auto& node : set) {
