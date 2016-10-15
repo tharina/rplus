@@ -2,7 +2,7 @@
 // vim: tabstop=2 shiftwidth=2 expandtab
 
 #ifndef GEOMETRY_H_
-#define GEOMETRY_H
+#define GEOMETRY_H_
 
 #include <iostream>
 #include <limits>
@@ -36,8 +36,8 @@ public:
   const Point& bottom_left() const { return bottom_left_; }
   const Point& top_right() const { return top_right_; }
 
-  double MinSide(Axis axis) const { return bottom_left_[axis]; }
-  double MaxSide(Axis axis) const { return top_right_[axis]; }
+  double min_side(Axis axis) const { return bottom_left_[axis]; }
+  double max_side(Axis axis) const { return top_right_[axis]; }
 
   bool Overlaps(const Rectangle& other) const {
     return bottom_left_[0] <= other.top_right_[0]   &&
@@ -53,9 +53,8 @@ public:
            p[1] <= top_right_[1];
   }
 
-  bool Intersects(Axis axis, double distance) const {
-    // TODO <= ?
-    return bottom_left_[axis] < distance && top_right_[axis] > distance;
+  bool Intersects(Axis axis, double offset) const {
+    return bottom_left_[axis] < offset && top_right_[axis] > offset;
   }
 
   double Area() const {
@@ -83,6 +82,12 @@ public:
     return BoundingBox(points.data(), points.size());
   }
 
+  bool operator==(const Rectangle& other) const {
+    return bottom_left_[0] == other.bottom_left_[0] &&
+           bottom_left_[1] == other.bottom_left_[1] &&
+           top_right_[0] == other.top_right_[0] &&
+           top_right_[1] == other.top_right_[1];
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const Rectangle& r) {
     os << std::fixed << std::setprecision(2)
@@ -92,4 +97,4 @@ public:
   }
 };
 
-#endif  // GEOMETRY_H
+#endif  // GEOMETRY_H_

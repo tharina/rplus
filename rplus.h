@@ -9,11 +9,10 @@
 #include <algorithm>
 #include <iomanip>
 
-#include "range_search.h"
-#include "geometry.h"
-
 #define DEBUG 1
 
+#include "range_search.h"
+#include "geometry.h"
 
 namespace range_search {
 
@@ -21,329 +20,205 @@ namespace range_search {
 template<class Point>
 class RPlusTree : public RangeSearch<Point> {
 
-
   static const size_t kNodeCapacity = 8;
   static const size_t kFillFactor = kNodeCapacity * 1;
 
+  // Forward declaration required for struct Entry.
+  class Node;
 
+  // An entry in the tree consists of a child node pointer and its bounding box.
+  struct Entry {
+    Entry() { }
+    Entry(Node* n, const Rectangle<Point>& r) : node(n), rectangle(r) { }
 
-  class IntermediateNode;
-
-  class Node {
-
-    private:
-      IntermediateNode* parent_;
-
-    protected:
-      // TODO private?
-      Rectangle<Point> rect_;
-
-    public:
-      Node() { }
-
-      virtual ~Node() { }
-
-      const Rectangle<Point>& rectangle() const {
-        return rect_;
-      }
-
-      virtual void Search(const Rectangle<Point>& w, std::vector<Point>& result) const = 0;
-
-      virtual Node* Split(Axis axis, double distance) = 0;
-
-      virtual void Print(size_t indent_level) = 0;
+    Node* node;
+    Rectangle<Point> rectangle;
   };
 
-
-  class IntermediateNode : public Node {
-
-    private:
-      size_t num_children_ ;
-      Node* children_[kNodeCapacity];
-
+  // Nodes of the tree.
+  class Node {
     public:
+      Node(const std::vector<Entry>& entries) {
+        Assert(entries.size() > 0);         // Nodes must always have at least one entry.
+        num_entries_ = entries.size();
+        std::copy(std::begin(entries), std::end(entries), std::begin(entries_));
+      }
 
-      IntermediateNode(const std::vector<Node*>& children) : Node() {
-        num_children_ = children.size();
-        for (size_t i = 0; i < num_children_; ++i) {
-          children_[i] = children[i];
+      ~Node() {
+        for (size_t i = 0; i < num_entries_; ++i) {
+          delete entries_[i].node;
         }
+      }
 
-        // Calculate bounding box
+      // Return whether this node is a leaf.
+      bool is_leaf() const {
+        return entries_[0].node == nullptr;
+      }
+
+      // Compute the bounding box for all entries of this node.
+      Rectangle<Point> ComputeBoundingBox() const {
         std::vector<Point> points;
-        for (const auto& node : children) {
-          points.push_back(node->rectangle().bottom_left());
-          points.push_back(node->rectangle().top_right());
+        for (size_t i = 0; i < num_entries_; ++i) {
+          points.push_back(entries_[i].rectangle.bottom_left());
+          points.push_back(entries_[i].rectangle.top_right());
         }
-        Node::rect_ = Rectangle<Point>::BoundingBox(points);
+        return Rectangle<Point>::BoundingBox(points);
       }
 
-      ~IntermediateNode() override {
-        for (size_t i = 0; i < num_children_; ++i) {
-          delete children_[i];
-        }
-      }
-
-      void Search(const Rectangle<Point>& w, std::vector<Point>& result) const override {
-        for (size_t i = 0; i < num_children_; ++i) {
-          if (w.Overlaps(children_[i]->rectangle())) {
-            children_[i]->Search(w, result);
+      // Recursively (if !is_leaf) search for all entries covered by this node that
+      // overlap with the given search window.
+      void Search(const Rectangle<Point>& search_window, std::vector<Point>& result) const {
+        bool leaf = is_leaf();
+        for (size_t i = 0; i < num_entries_; ++i) {
+          if (search_window.Overlaps(entries_[i].rectangle)) {
+            if (leaf) {
+              result.push_back(entries_[i].rectangle.bottom_left());
+            } else {
+              entries_[i].node->Search(search_window, result);
+            }
           }
         }
       }
 
-      Node* Split(Axis axis, double distance) override {
-        std::vector<Node*> keep, abandon;
+      // Split this node along an axis-aligned line. Return a new node containing the entries that are no longer part of this node after the split.
+      // The node's bounding box has to be recalculated after splitting.
+      Node* Split(Axis axis, double offset) {
+        Assert(num_entries_ > 0);
+        std::vector<Entry> abandon;
 
-        for (size_t i = 0; i < num_children_; ++i) {
-          Node* node = children_[i];
-          if (node->rectangle().top_right()[axis] <= distance) {
-            keep.push_back(node);
-          } else if (node->rectangle().bottom_left()[axis] < distance) {
-            Node* new_node = node->Split(axis, distance);
-            // TODO correct?
-            keep.push_back(node);
-            abandon.push_back(new_node);
+        size_t new_num_entries = 0;
+        for (size_t i = 0; i < num_entries_; ++i) {
+          Entry& entry = entries_[i];
+          if (entry.rectangle.max_side(axis) <= offset) {
+            entries_[new_num_entries++] = entry;
+          } else if (entry.rectangle.min_side(axis) < offset) {
+            Assert(!is_leaf());               // Currently cannot happen since we only store points in the leaves.
+
+            // Need to split the child node.
+            Node* new_node = entry.node->Split(axis, offset);
+
+            // The original node will now contain all entries "smaller" than the split line. Its bounding box has to be recomputed though.
+            entries_[new_num_entries].node = entry.node;
+            entries_[new_num_entries++].rectangle = entry.node->ComputeBoundingBox();
+
+            // The new node will contain all other entries, so "abandon" it.
+            abandon.emplace_back(new_node, new_node->ComputeBoundingBox());
           } else {
-            abandon.push_back(node);
+            abandon.push_back(entry);
           }
         }
 
-        // TODO make better
-        std::vector<Point> points;
-        num_children_ = keep.size();
-        for (size_t i = 0; i < num_children_; ++i) {
-          children_[i] = keep[i];
-          points.push_back(keep[i]->rectangle().bottom_left());
-          points.push_back(keep[i]->rectangle().top_right());
-        }
+        num_entries_ = new_num_entries;
 
-        // Update bounding box
-        Node::rect_ = Rectangle<Point>::BoundingBox(points);
-
-        return new IntermediateNode(abandon);
+        return new Node(abandon);
       }
 
-      static Node* Pack(std::vector<Node*> nodes) {
-        if (nodes.size() <= kFillFactor) {
-          return new IntermediateNode(nodes);
-        }
-
-        std::vector<Node*> next_level_nodes;
-        std::vector<Node*> remainder;
-        while (nodes.size() > 0) {
-          next_level_nodes.push_back(Partition(nodes, remainder));
-          nodes.clear();
-          nodes.swap(remainder);
-        }
-
-        return Pack(next_level_nodes);
-      }
-
-      static IntermediateNode* Partition(std::vector<Node*> set, std::vector<Node*>& remainder) {
-        if (set.size() <= kFillFactor) {
-          return new IntermediateNode(set);
-        }
-
-        double cutline, cutline_x, cutline_y;
-
-        double cost_x = Sweep(set, Axis::X, cutline_x);
-        double cost_y = Sweep(set, Axis::Y, cutline_y);
-
-        Axis axis;
-        if (cost_x < cost_y) {
-          axis = Axis::X;
-          cutline = cutline_x;
-        } else {
-          axis = Axis::Y;
-          cutline = cutline_y;
-        }
-
-        std::vector<Node*> used;
-
-        for (auto node : set) {
-          // Check if node has to be split
-          if (node->rectangle().Intersects(axis, cutline)) {
-            // Need to split...
-            Node* new_node = node->Split(axis, cutline);
-            // TODO correct?
-            remainder.push_back(new_node);
-          }
-
-          // Insert node into correct set
-          if (node->rectangle().bottom_left()[axis] < cutline) {
-            used.push_back(node);
-          } else {
-            remainder.push_back(node);
-          }
-        }
-
-        return new IntermediateNode(used);
-      }
-
-      static double Sweep(std::vector<Node*>& set, Axis axis, double& cutline) {
-        std::sort(set.begin(), set.end(), [=](Node* a, Node* b) -> bool { return a->rectangle().bottom_left()[axis] < b->rectangle().bottom_left()[axis]; });
-
-        cutline = set[kFillFactor]->rectangle().bottom_left()[axis];
-
-        // Check for edge case: all points on a axis-aligned line.
-        if (set.begin()->rectangle().p1()[axis] == set.end()->rectangle().p1()[axis]) {
-          return std::numeric_limits<double>::max();
-        }
-
-        // Cost: total area around the points
-        std::vector<Point> points;
-        for (const auto& node : set) {
-          points.push_back(node->rectangle().bottom_left());
-          points.push_back(node->rectangle().top_right());
-        }
-        return Rectangle<Point>::BoundingBox(points.data(), kFillFactor * 2).Area();
-      }
-
-      void Print(size_t indent_level) override {
+      void Print(size_t indent_level) {
         for (size_t i = 1; i < indent_level; ++i) {
           std::cout << "|  ";
         }
         if (indent_level > 0) {
           std::cout << "---";
         }
-        std::cout << "# [" << num_children_ << "]  " << Node::rect_ << std::endl;
+        std::cout << "# [" << num_entries_ << "]  ";
+        //Node::rectangle().Print();
+        std::cout << std::endl;
 
-        for (size_t i = 0; i < num_children_; ++i) {
-          children_[i]->Print(indent_level + 1);
-        }
+        // TODO
+        //for (size_t i = 0; i < num_children_; ++i) {
+        //  children_[i]->Print(indent_level + 1);
+        //}
       }
-  };
-
-
-  class Leaf : public Node {
 
     private:
-      size_t num_points_;
-      Point points_[kNodeCapacity];
-
-    public:
-      Leaf(const std::vector<Point>& points) : Node() {
-        num_points_ = points.size();
-        for (size_t i = 0; i < num_points_; ++i) {
-          points_[i] = points[i];
-        }
-
-        // Calculate bounding box
-        Node::rect_ = Rectangle<Point>::BoundingBox(points);
-      }
-
-      ~Leaf() override { }
-
-      void Search(const Rectangle<Point>& w, std::vector<Point>& result) const override {
-        for (size_t i = 0; i < num_points_; ++i) {
-          if (w.Contains(points_[i])) {
-            result.push_back(points_[i]);
-          }
-        }
-      }
-
-      Node* Split(Axis axis, double distance) override {
-        std::vector<Point> keep, abandon;
-
-        for (size_t i = 0; i < num_points_; ++i) {
-          const Point& point = points_[i];
-          if (point[axis] < distance) {
-            keep.push_back(point);
-          } else {
-            abandon.push_back(point);
-          }
-        }
-
-        // TODO make better
-        num_points_ = keep.size();
-        for (size_t i = 0; i < num_points_; ++i) {
-          points_[i] = keep[i];
-        }
-
-        // Update bounding box
-        Node::rect_ = Rectangle<Point>::BoundingBox(keep);
-
-        return new Leaf(abandon);
-      }
-
-      static Node* Pack(std::vector<Point> points) {
-        if (points.size() <= kFillFactor) {
-          return new Leaf(points);
-        }
-
-        std::vector<Node*> leafs;
-        std::vector<Point> remainder;
-        while (points.size() > 0) {
-          leafs.push_back(Partition(points, remainder));
-          points.clear();
-          points.swap(remainder);
-        }
-        return IntermediateNode::Pack(leafs);
-      }
-
-      static Leaf* Partition(std::vector<Point>& set, std::vector<Point>& remainder) {
-        if (set.size() <= kFillFactor) {
-          return new Leaf(set);
-        }
-
-        double cutline, cutline_x, cutline_y;
-
-        double cost_x = Sweep(set, Axis::X, cutline_x);
-        double cost_y = Sweep(set, Axis::Y, cutline_y);
-
-        Axis axis;
-        if (cost_x < cost_y) {
-          axis = Axis::X;
-          cutline = cutline_x;
-        } else {
-          axis = Axis::Y;
-          cutline = cutline_y;
-        }
-
-        std::vector<Point> used;
-
-        for (const auto& point : set) {
-          if (point[axis] < cutline) {
-            used.push_back(point);
-          } else {
-            remainder.push_back(point);
-          }
-        }
-
-        return new Leaf(used);
-      }
-
-      static double Sweep(std::vector<Point>& set, Axis axis, double& cutline) {
-        std::sort(set.begin(), set.end(), [=](const Point& a, const Point& b) -> bool { return a[axis] < b[axis]; });
-
-        cutline = set[kFillFactor][axis];
-
-        // Cost: total area around the points
-        return Rectangle<Point>::BoundingBox(set.data(), kFillFactor).Area();
-      }
-
-
-      void Print(size_t indent_level) override {
-        for (size_t i = 1; i < indent_level; ++i) {
-          std::cout << "|  ";
-        }
-        if (indent_level > 0) {
-          std::cout << "|--";
-        }
-        std::cout << " [" << num_points_ << "]  " << Node::rect_ << std::endl;
-      }
-
+      // Node entries. Entries are stored inline for improved performance.
+      size_t num_entries_ ;
+      Entry entries_[kNodeCapacity];
   };
-
-
-
-
-
 
   private:
     Node* root_;
 
+    // Pack a set of entries into a new R+ (sub-)tree.
+    static Node* Pack(std::vector<Entry>& entries) {
+      if (entries.size() <= kFillFactor) {
+        return new Node(entries);
+      }
+
+      std::vector<Entry> next_level_entries;
+      std::vector<Entry> remainder;
+      while (entries.size() > 0) {
+        next_level_entries.push_back(Partition(entries, remainder));
+        entries.clear();
+        entries.swap(remainder);
+      }
+
+      return Pack(next_level_entries);
+    }
+
+    static Entry Partition(std::vector<Entry>& set, std::vector<Entry>& remainder) {
+      if (set.size() <= kFillFactor) {
+        Node* node = new Node(set);
+        return Entry(node, node->ComputeBoundingBox());
+      }
+
+      double cutline, cutline_x, cutline_y;
+      double cost_x = Sweep(set, Axis::X, cutline_x);
+      double cost_y = Sweep(set, Axis::Y, cutline_y);
+
+      // Determine cheapest cutline.
+      Axis axis;
+      if (cost_x < cost_y) {
+        axis = Axis::X;
+        cutline = cutline_x;
+      } else {
+        axis = Axis::Y;
+        cutline = cutline_y;
+      }
+
+      std::vector<Entry> used;
+      for (auto& entry : set) {
+        if (entry.rectangle.Intersects(axis, cutline)) {
+          // Need to split the node and add the newly created node to the remainder set.
+          Assert(entry.node->ComputeBoundingBox() == entry.rectangle);
+          Node* new_node = entry.node->Split(axis, cutline);
+          entry.rectangle = entry.node->ComputeBoundingBox();
+          remainder.emplace_back(new_node, new_node->ComputeBoundingBox());
+        }
+
+        // Insert node into correct set
+        if (entry.rectangle.min_side(axis) < cutline) {
+          used.push_back(entry);
+        } else {
+          remainder.push_back(entry);
+        }
+      }
+
+      Node* node = new Node(used);
+      return Entry(node, node->ComputeBoundingBox());
+    }
+
+    static double Sweep(std::vector<Entry>& set, Axis axis, double& cutline) {
+      Assert(set.size() > 0);
+
+      std::sort(set.begin(), set.end(), [=](const Entry& a, const Entry& b) -> bool { return a.rectangle.min_side(axis) < b.rectangle.min_side(axis); });
+
+      cutline = set[kFillFactor].rectangle.min_side(axis);
+
+      // Check for edge case: all points on an axis-aligned line.
+      if (set[0].rectangle.min_side(axis) == set[set.size() - 1].rectangle.min_side(axis)) {
+        return std::numeric_limits<double>::max();
+      }
+
+      // Cost: total area around the points
+      // TODO
+      std::vector<Point> points;
+      for (const auto& entry : set) {
+        points.push_back(entry.rectangle.bottom_left());
+        points.push_back(entry.rectangle.top_right());
+      }
+      return Rectangle<Point>::BoundingBox(points.data(), kFillFactor * 2).Area();
+    }
 
   public:
     RPlusTree() : root_(nullptr) { }
@@ -355,7 +230,12 @@ class RPlusTree : public RangeSearch<Point> {
     /// Sets the underlying set.
     // No two points must be equal.
     void assign(const std::vector<Point>& points) override {
-      root_ = Leaf::Pack(points);
+      std::vector<Entry> entries(points.size());
+      for (size_t i = 0; i < points.size(); ++i) {
+        const Point& p = points[i];
+        entries[i] = Entry(nullptr, Rectangle<Point>(p, p));
+      }
+      root_ = Pack(entries);
     }
 
     /// Reports all points within the rectangle given by [min, max].
