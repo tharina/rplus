@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <iomanip>
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include "range_search.h"
 #include "geometry.h"
@@ -20,7 +20,7 @@ namespace range_search {
 template<class Point>
 class RPlusTree : public RangeSearch<Point> {
 
-  static const size_t kNodeCapacity = 8;
+  static const size_t kNodeCapacity = 32;
   static const size_t kFillFactor = kNodeCapacity * 1;
 
   // Forward declaration required for struct Entry.
@@ -34,6 +34,37 @@ class RPlusTree : public RangeSearch<Point> {
     Node* node;
     Rectangle<Point> rectangle;
   };
+
+  //
+  // Cost metrics used by SWEEP.
+  //
+
+  // Region with the smallest area is preferred.
+  static double TotalAreaCost(const std::vector<Entry>& entries_sorted, size_t num_used, Axis axis, double cutline) {
+    // Unused arguments
+    (void)axis;
+    (void)cutline;
+
+    // Cost: total area around the points
+    std::vector<Point> points;
+    for (size_t i = 0; i < num_used; ++i) {
+      points.push_back(entries_sorted[i].rectangle.bottom_left());
+      points.push_back(entries_sorted[i].rectangle.top_right());
+    }
+    return Rectangle<Point>::BoundingBox(points).Area();
+  }
+
+  // Region that requires the least number of rectangle splits is preferred.
+  static double NumRectangleCuts(const std::vector<Entry>& entries_sorted, size_t num_used, Axis axis, double cutline) {
+    double num_splits = 0;
+    for (size_t i = 0; i < num_used; ++i) {
+      num_splits += entries_sorted[i].rectangle.Intersects(axis, cutline);
+    }
+    return num_splits;
+  }
+
+  // See comment in Sweep(). No function pointers for performance reasons.
+  #define COST TotalAreaCost
 
   // Nodes of the tree.
   class Node {
@@ -258,14 +289,8 @@ class RPlusTree : public RangeSearch<Point> {
         return std::numeric_limits<double>::max();
       }
 
-      // Cost: total area around the points
-      // TODO
-      std::vector<Point> points;
-      for (const auto& entry : set) {
-        points.push_back(entry.rectangle.bottom_left());
-        points.push_back(entry.rectangle.top_right());
-      }
-      return Rectangle<Point>::BoundingBox(points.data(), kFillFactor * 2).Area();
+      // This should be a template parameter, but that causes issues due to internal linkage of the template arguments...
+      return COST(set, kFillFactor, axis, cutline);
     }
 
   public:

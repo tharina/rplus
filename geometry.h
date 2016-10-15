@@ -68,25 +68,22 @@ public:
     return (top_right_[0] - bottom_left_[0]) * (top_right_[1] - bottom_left_[1]);
   }
 
-  static Rectangle BoundingBox(const Point* points, size_t length) {
-    Assert(length > 0);
+  static Rectangle BoundingBox(const std::vector<Point>& points) {
+    Assert(points.size() > 0);
+
     double xmin = std::numeric_limits<double>::max();
     double xmax = std::numeric_limits<double>::lowest();
     double ymin = std::numeric_limits<double>::max();
     double ymax = std::numeric_limits<double>::lowest();
 
-    for (size_t i = 0; i < length; ++i) {
-      xmax = std::max(xmax, points[i][Axis::X]);
-      xmin = std::min(xmin, points[i][Axis::X]);
-      ymax = std::max(ymax, points[i][Axis::Y]);
-      ymin = std::min(ymin, points[i][Axis::Y]);
+    for (const auto& point : points) {
+      xmax = std::max(xmax, point[Axis::X]);
+      xmin = std::min(xmin, point[Axis::X]);
+      ymax = std::max(ymax, point[Axis::Y]);
+      ymin = std::min(ymin, point[Axis::Y]);
     }
 
     return Rectangle({{xmin, ymin}}, {{xmax, ymax}});
-  }
-
-  static Rectangle BoundingBox(const std::vector<Point>& points) {
-    return BoundingBox(points.data(), points.size());
   }
 
   bool operator==(const Rectangle& other) const {
