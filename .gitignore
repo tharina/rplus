@@ -3,3 +3,4 @@ bench
 bench_malloc
 sanitize
 results/
+test

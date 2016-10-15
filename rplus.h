@@ -10,21 +10,13 @@
 #include <iomanip>
 
 #include "range_search.h"
+#include "geometry.h"
 
 #define DEBUG 1
 
-#if DEBUG
-  #define Assert(expr) if (!(expr)) { std::cerr << "Assertion \"" << #expr << "\" failed (in " << __FILE__ << ":" << __LINE__ << "). Aborting" << std::endl; abort(); }
-#else
-  #define Assert(expr) if (!(expr)) { }
-#endif
 
 namespace range_search {
 
-enum Axis: size_t {
-  X = 0,
-  Y = 1
-};
 
 template<class Point>
 class RPlusTree : public RangeSearch<Point> {
@@ -34,82 +26,6 @@ class RPlusTree : public RangeSearch<Point> {
   static const size_t kFillFactor = kNodeCapacity * 1;
 
 
-  class Rectangle {
-
-    private:
-      Point bottom_left_;
-      Point top_right_;
-
-    public:
-
-      Rectangle(Point bl, Point tr) : bottom_left_(bl), top_right_(tr) {}
-
-      Rectangle() { }
-
-      // TODO rename
-      const Point& p1() const { return bottom_left_; }
-      const Point& p2() const { return top_right_; }
-
-      bool Overlaps(const Rectangle& other) const {
-        // TODO float comparison
-        return bottom_left_[0] <= other.top_right_[0]   &&
-               top_right_[0]   >= other.bottom_left_[0] &&
-               top_right_[1]   >= other.bottom_left_[1] &&
-               bottom_left_[1] <= other.top_right_[1];
-      }
-
-      bool Contains(const Point& p) const {
-        // TODO float comparison
-        return p[0] >= bottom_left_[0] &&
-               p[0] <= top_right_[0]   &&
-               p[1] >= bottom_left_[1] &&
-               p[1] <= top_right_[1];
-      }
-
-      bool Intersects(Axis axis, double distance) const {
-        // TODO <= ?
-        return bottom_left_[axis] < distance && top_right_[axis] > distance;
-      }
-
-      double Area() const {
-        return (top_right_[0] - bottom_left_[0]) * (top_right_[1] - bottom_left_[1]);
-      }
-
-      static Rectangle BoundingBox(const Point* points, size_t length) {
-        Assert(length > 0);
-        double xmin = std::numeric_limits<double>::max();
-        double xmax = std::numeric_limits<double>::lowest();
-        double ymin = std::numeric_limits<double>::max();
-        double ymax = std::numeric_limits<double>::lowest();
-
-        for (size_t i = 0; i < length; ++i) {
-          xmax = std::max(xmax, points[i][Axis::X]);
-          xmin = std::min(xmin, points[i][Axis::X]);
-          ymax = std::max(ymax, points[i][Axis::Y]);
-          ymin = std::min(ymin, points[i][Axis::Y]);
-        }
-
-        return Rectangle({{xmin, ymin}}, {{xmax, ymax}});
-      }
-
-      static Rectangle BoundingBox(const std::vector<Point>& points) {
-        return BoundingBox(points.data(), points.size());
-      }
-
-      void Print() const {
-        std::cout << std::fixed << std::setprecision(2) <<
-                     "(" << bottom_left_[0] << "," << bottom_left_[1] << ") " <<
-                     "(" << top_right_[0]   << "," << top_right_[1]   << ")";
-      }
-
-      std::string ToString() const {
-        std::stringstream stream;
-        stream << std::fixed << std::setprecision(2)
-               << "(" << bottom_left_[0] << "," << bottom_left_[1] << ") "
-               << "(" << top_right_[0]   << "," << top_right_[1]   << ")";
-        return stream.str();
-      }
-  };
 
   class IntermediateNode;
 
@@ -120,18 +36,18 @@ class RPlusTree : public RangeSearch<Point> {
 
     protected:
       // TODO private?
-      Rectangle rect_;
+      Rectangle<Point> rect_;
 
     public:
       Node() { }
 
       virtual ~Node() { }
 
-      const Rectangle& rectangle() const {
+      const Rectangle<Point>& rectangle() const {
         return rect_;
       }
 
-      virtual void Search(const Rectangle& w, std::vector<Point>& result) const = 0;
+      virtual void Search(const Rectangle<Point>& w, std::vector<Point>& result) const = 0;
 
       virtual Node* Split(Axis axis, double distance) = 0;
 
@@ -156,10 +72,10 @@ class RPlusTree : public RangeSearch<Point> {
         // Calculate bounding box
         std::vector<Point> points;
         for (const auto& node : children) {
-          points.push_back(node->rectangle().p1());
-          points.push_back(node->rectangle().p2());
+          points.push_back(node->rectangle().bottom_left());
+          points.push_back(node->rectangle().top_right());
         }
-        Node::rect_ = Rectangle::BoundingBox(points);
+        Node::rect_ = Rectangle<Point>::BoundingBox(points);
       }
 
       ~IntermediateNode() override {
@@ -168,7 +84,7 @@ class RPlusTree : public RangeSearch<Point> {
         }
       }
 
-      void Search(const Rectangle& w, std::vector<Point>& result) const override {
+      void Search(const Rectangle<Point>& w, std::vector<Point>& result) const override {
         for (size_t i = 0; i < num_children_; ++i) {
           if (w.Overlaps(children_[i]->rectangle())) {
             children_[i]->Search(w, result);
@@ -181,9 +97,9 @@ class RPlusTree : public RangeSearch<Point> {
 
         for (size_t i = 0; i < num_children_; ++i) {
           Node* node = children_[i];
-          if (node->rectangle().p2()[axis] <= distance) {
+          if (node->rectangle().top_right()[axis] <= distance) {
             keep.push_back(node);
-          } else if (node->rectangle().p1()[axis] < distance) {
+          } else if (node->rectangle().bottom_left()[axis] < distance) {
             Node* new_node = node->Split(axis, distance);
             // TODO correct?
             keep.push_back(node);
@@ -198,12 +114,12 @@ class RPlusTree : public RangeSearch<Point> {
         num_children_ = keep.size();
         for (size_t i = 0; i < num_children_; ++i) {
           children_[i] = keep[i];
-          points.push_back(keep[i]->rectangle().p1());
-          points.push_back(keep[i]->rectangle().p2());
+          points.push_back(keep[i]->rectangle().bottom_left());
+          points.push_back(keep[i]->rectangle().top_right());
         }
 
         // Update bounding box
-        Node::rect_ = Rectangle::BoundingBox(points);
+        Node::rect_ = Rectangle<Point>::BoundingBox(points);
 
         return new IntermediateNode(abandon);
       }
@@ -255,7 +171,7 @@ class RPlusTree : public RangeSearch<Point> {
           }
 
           // Insert node into correct set
-          if (node->rectangle().p1()[axis] < cutline) {
+          if (node->rectangle().bottom_left()[axis] < cutline) {
             used.push_back(node);
           } else {
             remainder.push_back(node);
@@ -266,9 +182,9 @@ class RPlusTree : public RangeSearch<Point> {
       }
 
       static double Sweep(std::vector<Node*>& set, Axis axis, double& cutline) {
-        std::sort(set.begin(), set.end(), [=](Node* a, Node* b) -> bool { return a->rectangle().p1()[axis] < b->rectangle().p1()[axis]; });
+        std::sort(set.begin(), set.end(), [=](Node* a, Node* b) -> bool { return a->rectangle().bottom_left()[axis] < b->rectangle().bottom_left()[axis]; });
 
-        cutline = set[kFillFactor]->rectangle().p1()[axis];
+        cutline = set[kFillFactor]->rectangle().bottom_left()[axis];
 
         // Check for edge case: all points on a axis-aligned line.
         if (set.begin()->rectangle().p1()[axis] == set.end()->rectangle().p1()[axis]) {
@@ -278,10 +194,10 @@ class RPlusTree : public RangeSearch<Point> {
         // Cost: total area around the points
         std::vector<Point> points;
         for (const auto& node : set) {
-          points.push_back(node->rectangle().p1());
-          points.push_back(node->rectangle().p2());
+          points.push_back(node->rectangle().bottom_left());
+          points.push_back(node->rectangle().top_right());
         }
-        return Rectangle::BoundingBox(points.data(), kFillFactor * 2).Area();
+        return Rectangle<Point>::BoundingBox(points.data(), kFillFactor * 2).Area();
       }
 
       void Print(size_t indent_level) override {
@@ -291,9 +207,7 @@ class RPlusTree : public RangeSearch<Point> {
         if (indent_level > 0) {
           std::cout << "---";
         }
-        std::cout << "# [" << num_children_ << "]  ";
-        Node::rectangle().Print();
-        std::cout << std::endl;
+        std::cout << "# [" << num_children_ << "]  " << Node::rect_ << std::endl;
 
         for (size_t i = 0; i < num_children_; ++i) {
           children_[i]->Print(indent_level + 1);
@@ -316,12 +230,12 @@ class RPlusTree : public RangeSearch<Point> {
         }
 
         // Calculate bounding box
-        Node::rect_ = Rectangle::BoundingBox(points);
+        Node::rect_ = Rectangle<Point>::BoundingBox(points);
       }
 
       ~Leaf() override { }
 
-      void Search(const Rectangle& w, std::vector<Point>& result) const override {
+      void Search(const Rectangle<Point>& w, std::vector<Point>& result) const override {
         for (size_t i = 0; i < num_points_; ++i) {
           if (w.Contains(points_[i])) {
             result.push_back(points_[i]);
@@ -348,7 +262,7 @@ class RPlusTree : public RangeSearch<Point> {
         }
 
         // Update bounding box
-        Node::rect_ = Rectangle::BoundingBox(keep);
+        Node::rect_ = Rectangle<Point>::BoundingBox(keep);
 
         return new Leaf(abandon);
       }
@@ -406,7 +320,7 @@ class RPlusTree : public RangeSearch<Point> {
         cutline = set[kFillFactor][axis];
 
         // Cost: total area around the points
-        return Rectangle::BoundingBox(set.data(), kFillFactor).Area();
+        return Rectangle<Point>::BoundingBox(set.data(), kFillFactor).Area();
       }
 
 
@@ -417,9 +331,7 @@ class RPlusTree : public RangeSearch<Point> {
         if (indent_level > 0) {
           std::cout << "|--";
         }
-        std::cout << " [" << num_points_ << "]  ";
-        Node::rectangle().Print();
-        std::cout << std::endl;
+        std::cout << " [" << num_points_ << "]  " << Node::rect_ << std::endl;
       }
 
   };
@@ -448,7 +360,7 @@ class RPlusTree : public RangeSearch<Point> {
 
     /// Reports all points within the rectangle given by [min, max].
     void reportRange(const Point& min, const Point& max, std::vector<Point>& result) override {
-      Rectangle search_window(min, max);
+      Rectangle<Point> search_window(min, max);
       root_->Search(search_window, result);
     }
 
