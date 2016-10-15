@@ -213,11 +213,11 @@ class RPlusTree : public RangeSearch<Point> {
       // Cost: total area around the points
       // TODO
       std::vector<Point> points;
-      for (const auto& entry : set) {
-        points.push_back(entry.rectangle.bottom_left());
-        points.push_back(entry.rectangle.top_right());
+      for (size_t i = 0; i < kFillFactor; i++) {
+        points.push_back(set[i].rectangle.bottom_left());
+        points.push_back(set[i].rectangle.top_right());
       }
-      return Rectangle<Point>::BoundingBox(points.data(), kFillFactor * 2).Area();
+      return Rectangle<Point>::BoundingBox(points).Area();
     }
 
   public:
