@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     if (argc > 2)
         seed = strtol(argv[1], nullptr, 10);
 
-   double lower_bound = 0;
+   double lower_bound = -10000;
    double upper_bound = 10000;
    std::uniform_real_distribution<double> unif(lower_bound,upper_bound);
    std::default_random_engine re;
@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
    range_search::RPlusTree<Point> rplus;
 
    vector<Point> points;
-   for (int i = 0; i < 128; i++) {
+   for (int i = 0; i < 16384; i++) {
        points.push_back({{unif(re), unif(re)}});
    }
 
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
    rplus.Print();
 
    std::vector<Point> res;
-   rplus.reportRange({0, 0}, {10000, 10000}, res);
+   rplus.reportRange({-10000, -10000}, {10000, 10000}, res);
    cout << res.size() << endl;
 
    return 0;
