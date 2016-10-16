@@ -127,24 +127,27 @@ class RPlusTree : public RangeSearch<Point> {
           }
         }
       }
-      
+
       // Recursively (if !is_leaf) count all entries covered by this node that
       // overlap with the given search window.
       size_t Count(const Rectangle<Point>& search_window) const {
         size_t count = 0;
-        bool leaf = is_leaf();
-        for (size_t i = 0; i < num_entries_; ++i) {
-          const Entry& entry = entries_[i];
-          if (search_window.Contains(entry.rectangle)) {
-            if (leaf) {
+        if (is_leaf()) {
+          for (size_t i = 0; i < num_entries_; ++i) {
+            if (search_window.Contains(entries_[i].rectangle.bottom_left())) {      // We store points in the leafs
               count += 1;
-            } else {
-              //count += entry.node->Count(search_window);
-              count += entry.node->point_count();
             }
-          } else if (search_window.Overlaps(entry.rectangle)) {
-            Assert(!leaf);
-            count += entry.node->Count(search_window);
+          }
+        } else {
+          for (size_t i = 0; i < num_entries_; ++i) {
+            const Entry& entry = entries_[i];
+            if (search_window.Overlaps(entry.rectangle)) {
+              if (search_window.Contains(entry.rectangle)) {
+                count += entry.node->point_count();
+              } else {
+                count += entry.node->Count(search_window);
+              }
+            }
           }
         }
         return count;
@@ -185,7 +188,7 @@ class RPlusTree : public RangeSearch<Point> {
 
         // Remove points moved to the new node from this point's counter
         point_count_ -= next->point_count();
-        
+
         return next;
       }
 
@@ -315,8 +318,8 @@ class RPlusTree : public RangeSearch<Point> {
     void reportRange(const Point& min, const Point& max, std::vector<Point>& result) override {
       Rectangle<Point> search_window(min, max);
       root_->Search(search_window, result);
-    } 
-    
+    }
+
     /// Counts all points within the rectangle given by [min, max].
     size_t countRange(const Point& min, const Point& max) override {
       Rectangle<Point> search_window(min, max);
