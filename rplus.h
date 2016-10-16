@@ -73,6 +73,7 @@ class RPlusTree : public RangeSearch<Point> {
         Assert(entries.size() > 0);         // Nodes must always have at least one entry.
         num_entries_ = entries.size();
         std::copy(std::begin(entries), std::end(entries), std::begin(entries_));
+        //CalcCount();
       }
 
       ~Node() {
@@ -110,6 +111,25 @@ class RPlusTree : public RangeSearch<Point> {
           }
         }
       }
+
+      // Recursively (if !is_leaf) count all entries covered by this node that
+      // overlap with the given search window.
+      size_t Count(const Rectangle<Point>& search_window) const {
+        size_t count = 0;
+        bool leaf = is_leaf();
+        for (size_t i = 0; i < num_entries_; ++i) {
+          const Entry& entry = entries_[i];
+          if (search_window.Overlaps(entry.rectangle)) {
+            if (leaf) {
+              count += 1;
+            } else {
+              count += entry.node->Count(search_window);
+            }
+          }
+        }
+        return count;
+      }
+
 
       // Split this node along an axis-aligned line. Return a new node containing the entries that are no longer part of this node after the split.
       // The node's bounding box has to be recalculated after splitting.
@@ -163,7 +183,8 @@ class RPlusTree : public RangeSearch<Point> {
 
     private:
       // Node entries. Entries are stored inline for improved performance.
-      size_t num_entries_ ;
+      size_t num_entries_;
+
       Entry entries_[kNodeCapacity];
   };
 
@@ -190,7 +211,7 @@ class RPlusTree : public RangeSearch<Point> {
     static Entry Partition(std::vector<Entry>& set, std::vector<Entry>& remainder) {
       if (set.size() <= kFillFactor) {
         Node* node = new Node(set);
-        return Entry(node, node->ComputeBoundingBox());
+      return Entry(node, node->ComputeBoundingBox());
       }
 
       double cutline, cutline_x, cutline_y;
@@ -267,6 +288,12 @@ class RPlusTree : public RangeSearch<Point> {
     void reportRange(const Point& min, const Point& max, std::vector<Point>& result) override {
       Rectangle<Point> search_window(min, max);
       root_->Search(search_window, result);
+    }
+
+    /// Counts all points within the rectangle given by [min, max].
+    size_t countRange(const Point& min, const Point& max) override {
+      Rectangle<Point> search_window(min, max);
+      return root_->Count(search_window);
     }
 
     void Print() {
